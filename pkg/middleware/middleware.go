@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -350,7 +351,10 @@ func (s *SouinBaseHandler) Store(
 		}
 		res.Header.Set(rfc.StoredLengthHeader, res.Header.Get("Content-Length"))
 		response, err := httputil.DumpResponse(&res, true)
-		if err == nil && (bLen > 0 || canStatusCodeEmptyContent(statusCode) || s.hasAllowedAdditionalStatusCodesToCache(statusCode)) {
+		isHeadRequest := rq.Method == http.MethodHead
+		isHeadAllowed := slices.Contains(s.Configuration.GetDefaultCache().GetAllowedHTTPVerbs(), http.MethodHead)
+		canCacheEmptyBody := bLen == 0 && isHeadRequest && isHeadAllowed
+		if err == nil && (bLen > 0 || canCacheEmptyBody || canStatusCodeEmptyContent(statusCode) || s.hasAllowedAdditionalStatusCodesToCache(statusCode)) {
 			variedHeaders, isVaryStar := rfc.VariedHeaderAllCommaSepValues(res.Header)
 			if isVaryStar {
 				// "Implies that the response is uncacheable"
